@@ -28,11 +28,13 @@ export const errorText = (error: unknown) => (error instanceof Error ? error.mes
 
 export function CloudEnvironmentSettingsSection() {
   const queryClient = useQueryClient();
+  const selfHosted = useCloudroomAccount().data?.selfHosted === true;
   const environment = useQuery({
     queryKey: ENVIRONMENT_KEY,
     queryFn: ({ signal }) => sdk.cloudroom.environment(signal),
     refetchInterval: 15_000,
     retry: false,
+    enabled: !selfHosted,
   });
   const saved = (data: CloudEnvironment) => queryClient.setQueryData(ENVIRONMENT_KEY, data);
   const update = useMutation({ mutationFn: (change: CloudEnvironmentChange) => sdk.cloudroom.updateEnvironment(change), onSuccess: saved });
@@ -54,7 +56,11 @@ export function CloudEnvironmentSettingsSection() {
           </span>
         )}
       </header>
-      {!data ? (
+      {selfHosted ? (
+        <div role="status" className="rounded-lg bg-surface-recessed px-4 py-6 text-center text-xs text-subtle-foreground">
+          Connected to your own Core. Its cloud threads use the skills, logins, environment variables, and repositories set up on that machine, so nothing syncs from here.
+        </div>
+      ) : !data ? (
         <div role={environment.isError ? "alert" : "status"} className="rounded-lg bg-surface-recessed px-4 py-6 text-center text-xs text-subtle-foreground">
           {environment.isError ? errorText(environment.error) : "Loading your cloud environment…"}
         </div>
