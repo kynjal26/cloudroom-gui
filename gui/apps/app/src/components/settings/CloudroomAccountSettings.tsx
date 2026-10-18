@@ -79,7 +79,7 @@ export function CloudroomAccountSettings() {
     </SettingsSection>}
     <YourComputers />
     {signedIn && <BillingRow />}
-    {signedIn && <MacAccessRow />}
+    {(signedIn || status.data?.selfHosted) && <MacAccessRow />}
   </>;
 }
 

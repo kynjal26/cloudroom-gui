@@ -86,8 +86,9 @@ export function Onboarding() {
   const [open, setOpen] = useAtom(openAtom);
   const projects = useSidebarNavigation().data?.projects;
   const account = useCloudroomAccount();
-  const locked = account.isSuccess && !account.data.account;
-  const visible = locked || open || (!dismissed && projects !== undefined && projects.length === 0);
+  const selfHosted = account.data?.selfHosted === true;
+  const locked = account.isSuccess && !account.data.account && !selfHosted;
+  const visible = !selfHosted && (locked || open || (!dismissed && projects !== undefined && projects.length === 0));
   if (!visible) return null;
   return <Setup locked={locked} close={() => { setDismissed(true); setOpen(false); }} />;
 }
@@ -99,7 +100,7 @@ function Setup({ locked, close }: { locked: boolean; close: () => void }) {
   const saveMacAccess = useSetMacAccess();
   const saveCopyLogins = useSetCopyLogins();
   const leave = () => {
-    if (account.data?.account && account.data.macAccess == null) saveMacAccess.mutate(choices.macAccess);
+    if (account.data?.account && account.data.macAccess == null) saveMacAccess.mutate(choices.macAccess ? "ask" : "off");
     if (account.data?.account && account.data.copyLogins == null) saveCopyLogins.mutate(choices.copyLogins);
     close();
   };
@@ -407,7 +408,7 @@ function AgentStep({ progress, next, stamped, left, choices, setChoices }: { pro
   // Save whenever a box differs from the saved choice, so re-checking it after a Connect works.
   const saveChoices = () =>
     Promise.all([
-      ask.mac && account.data?.macAccess !== macAccess && saveMacAccess.mutateAsync(macAccess),
+      ask.mac && account.data?.macAccess !== macAccess && saveMacAccess.mutateAsync(macAccess ? "ask" : "off"),
       ask.logins && account.data?.copyLogins !== copyLogins && saveCopyLogins.mutateAsync(copyLogins),
     ]);
   const connectCodex = useMutation({
@@ -456,7 +457,7 @@ function AgentStep({ progress, next, stamped, left, choices, setChoices }: { pro
       {(agents.claude || agents.codex || agents.other) && (ask.mac || ask.logins) && (
         <div className="mt-4 flex gap-6 text-[12.5px] text-(--ob-muted) duration-300 animate-in fade-in-0">
           {ask.logins && <Choice checked={copyLogins} onChange={(value) => setChoices({ ...choices, copyLogins: value })} label="Copy logins to the cloud" detail="Agent logins, API keys, and model providers." />}
-          {ask.mac && <Choice checked={macAccess} onChange={(value) => setChoices({ ...choices, macAccess: value })} label="Let cloud agents use this computer" detail="Far more powerful agents. Turn off anytime." />}
+          {ask.mac && <Choice checked={macAccess} onChange={(value) => setChoices({ ...choices, macAccess: value })} label="Let cloud agents use this computer" detail="Changes need your one-tap OK. Turn off anytime." />}
         </div>
       )}
       <div className="mt-8 flex items-center gap-5">
