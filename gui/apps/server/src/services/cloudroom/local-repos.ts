@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 export interface LocalRepo { name: string; path: string; updatedAt: number; remote: string | null }
 
 const MAC_PRIVACY_FOLDERS = new Set(["Applications", "Desktop", "Documents", "Downloads", "Library", "Movies", "Music", "Pictures", "Public"]);
-const ROOTS = ["", "code", "Code", "Projects", "projects", "Developer", "dev", "src", "repos", "GitHub", "work"];
+const ROOTS = ["", "code", "Code", "Projects", "projects", "Developer", "dev", "src", "repos", "GitHub", "work", "workspace"];
 
 const mtime = (path: string) => stat(path).then((info) => info.mtimeMs, () => 0);
 const originUrl = (git: string) => readFile(join(git, "config"), "utf8").then((config) => config.match(/\[remote "origin"\][^[]*?\burl\s*=\s*(\S+)/)?.[1] ?? null, () => null);

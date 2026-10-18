@@ -20,68 +20,13 @@ const alwaysReplaceable = () => true;
 const neverReplaceable = () => false;
 
 describe("desktop update support", () => {
-  it("enables both update paths on macOS", () => {
-    expect(
-      resolveDesktopUpdateSupport({
-        canReplaceAppImage: neverReplaceable,
-        env: {},
-        platform: "macos",
-      }),
-    ).toEqual({ autoUpdate: true, versionCheck: true });
-  });
-
-  it("installs updates on Linux only inside an AppImage", () => {
-    expect(
-      resolveDesktopUpdateSupport({
-        canReplaceAppImage: alwaysReplaceable,
-        env: { APPIMAGE: APP_IMAGE_PATH },
-        platform: "linux",
-      }),
-    ).toEqual({ autoUpdate: true, versionCheck: true });
-    expect(
-      resolveDesktopUpdateSupport({
-        canReplaceAppImage: alwaysReplaceable,
-        env: {},
-        platform: "linux",
-      }),
-    ).toEqual({ autoUpdate: false, versionCheck: true });
-    expect(
-      resolveDesktopUpdateSupport({
-        canReplaceAppImage: alwaysReplaceable,
-        env: { APPIMAGE: "  " },
-        platform: "linux",
-      }),
-    ).toEqual({ autoUpdate: false, versionCheck: true });
-  });
-
-  it("refuses to install into an AppImage it cannot replace", () => {
-    const checked: Array<string> = [];
-
-    expect(
-      resolveDesktopUpdateSupport({
-        canReplaceAppImage: (path) => {
-          checked.push(path);
-          return false;
-        },
-        env: { APPIMAGE: APP_IMAGE_PATH },
-        platform: "linux",
-      }),
-    ).toEqual({ autoUpdate: false, versionCheck: true });
-    expect(checked).toEqual([APP_IMAGE_PATH]);
-  });
-
-  it("does not consult the filesystem on macOS", () => {
-    let consulted = false;
-
-    resolveDesktopUpdateSupport({
-      canReplaceAppImage: () => {
-        consulted = true;
-        return true;
-      },
-      env: { APPIMAGE: APP_IMAGE_PATH },
-      platform: "macos",
-    });
-
-    expect(consulted).toBe(false);
+  it("never checks or installs the upstream releases in this fork", () => {
+    for (const args of [
+      { canReplaceAppImage: alwaysReplaceable, env: {}, platform: "macos" as const },
+      { canReplaceAppImage: alwaysReplaceable, env: { APPIMAGE: APP_IMAGE_PATH }, platform: "linux" as const },
+      { canReplaceAppImage: neverReplaceable, env: {}, platform: "linux" as const },
+    ]) {
+      expect(resolveDesktopUpdateSupport(args)).toEqual({ autoUpdate: false, versionCheck: false });
+    }
   });
 });

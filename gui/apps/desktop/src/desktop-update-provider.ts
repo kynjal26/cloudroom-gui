@@ -85,19 +85,7 @@ interface ResolveDesktopUpdateSupportArgs {
 }
 
 export function resolveDesktopUpdateSupport(
-  args: ResolveDesktopUpdateSupportArgs,
+  _args: ResolveDesktopUpdateSupportArgs,
 ): DesktopUpdateSupport {
-  if (args.platform === "macos") {
-    return { autoUpdate: true, versionCheck: true };
-  }
-
-  const appImagePath = args.env.APPIMAGE?.trim() ?? "";
-  if (appImagePath.length === 0) {
-    return { autoUpdate: false, versionCheck: true };
-  }
-
-  return {
-    autoUpdate: args.canReplaceAppImage(appImagePath),
-    versionCheck: true,
-  };
+  return { autoUpdate: false, versionCheck: false };
 }

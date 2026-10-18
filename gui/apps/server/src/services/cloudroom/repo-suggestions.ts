@@ -12,6 +12,7 @@ export type RepoSuggestion =
   | { source: "github"; name: string; repo: string; updatedAt: number | null };
 
 const LIMIT = 20;
+const GITHUB_LIMIT = 100;
 const listSchema = z.array(z.object({ full_name: z.string(), pushed_at: z.string().nullable() }));
 /** `https://github.com/owner/name` in lower case, so SSH, HTTPS, and `.git` remotes of one repo match. */
 const repoKey = (remote: string | null) => githubRepository(remote)?.replace(/\.git$/, "").toLowerCase() ?? null;
@@ -44,7 +45,7 @@ async function movedRepos(projects: { id: string; name: string; gitRemoteUrl: st
 async function githubRepos(deps: AppDeps): Promise<{ connected: boolean; repos: { repo: string; updatedAt: number | null }[] }> {
   const token = await macGithubToken();
   if (token) {
-    const response = await fetch("https://api.github.com/user/repos?sort=pushed&per_page=50", {
+    const response = await fetch(`https://api.github.com/user/repos?sort=pushed&per_page=${GITHUB_LIMIT}`, {
       headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10_000),
     }).catch(() => null);
     const list = response?.ok ? listSchema.safeParse(await response.json().catch(() => null)) : null;
@@ -73,7 +74,7 @@ export async function repoSuggestions(deps: AppDeps): Promise<{ githubConnected:
     githubConnected: github.connected,
     repos: [
       ...macRepos.slice(0, LIMIT).map(({ name, path, updatedAt }) => ({ source: "mac" as const, name, path, updatedAt })),
-      ...notMoved.slice(0, LIMIT).map(({ repo, updatedAt }) => ({ source: "github" as const, name: repo.split("/")[1] ?? repo, repo, updatedAt })),
+      ...notMoved.slice(0, GITHUB_LIMIT).map(({ repo, updatedAt }) => ({ source: "github" as const, name: repo.split("/")[1] ?? repo, repo, updatedAt })),
     ],
   };
 }
