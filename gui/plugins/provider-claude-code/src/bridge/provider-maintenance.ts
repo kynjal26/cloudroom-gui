@@ -30,6 +30,8 @@ import { fetchWithProxyFallback } from "./proxy-fallback.js";
 
 const execFileAsync = promisify(execFile);
 const USAGE_FETCH_TIMEOUT_MS = 15_000;
+const USAGE_THROTTLE_FALLBACK_MS = 5 * 60_000;
+let usageThrottledUntil = 0;
 const CLAUDE_USAGE_URL = "https://api.anthropic.com/api/oauth/usage";
 const CLAUDE_KEYCHAIN_SERVICE = "Claude Code-credentials";
 const CLAUDE_NPM_PACKAGE = "@anthropic-ai/claude-code";
@@ -546,6 +548,16 @@ export async function getClaudeProviderUsage(): Promise<ProviderUsageResult> {
     return { supported: true, usage: { status: "expired" } };
   }
   const known = { planLabel: planLabel(credentials), accountEmail: email };
+  const throttled = (): ProviderUsageResult => ({
+    supported: true,
+    usage: {
+      status: "error",
+      message:
+        "Anthropic temporarily throttled this usage check. This does not mean your Claude limit is exhausted. Try again later.",
+      ...known,
+    },
+  });
+  if (Date.now() < usageThrottledUntil) return throttled();
   try {
     const response = await fetchWithProxyFallback((init) =>
       fetch(CLAUDE_USAGE_URL, {
@@ -563,15 +575,21 @@ export async function getClaudeProviderUsage(): Promise<ProviderUsageResult> {
     if (response.status === 401) {
       return { supported: true, usage: { status: "expired" } };
     }
+    if (response.status === 429) {
+      const seconds = Number(response.headers?.get("retry-after"));
+      usageThrottledUntil =
+        Date.now() +
+        (Number.isFinite(seconds) && seconds > 0
+          ? seconds * 1000
+          : USAGE_THROTTLE_FALLBACK_MS);
+      return throttled();
+    }
     if (!response.ok) {
       return {
         supported: true,
         usage: {
           status: "error",
-          message:
-            response.status === 429
-              ? "Anthropic temporarily throttled this usage check. This does not mean your Claude limit is exhausted. Try again later."
-              : `Claude usage request failed (HTTP ${response.status}).`,
+          message: `Claude usage request failed (HTTP ${response.status}).`,
           ...known,
         },
       };

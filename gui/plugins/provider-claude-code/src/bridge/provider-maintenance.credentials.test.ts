@@ -121,4 +121,37 @@ describe("Claude Code credential loading", () => {
       }),
     });
   });
+
+  it("waits for Anthropic's Retry-After before checking usage again", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2030-01-01T00:00:00Z"));
+      const fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 429,
+        headers: new Headers({ "retry-after": "120" }),
+      });
+      vi.stubGlobal("fetch", fetch);
+
+      await getClaudeProviderUsage();
+      vi.setSystemTime(new Date("2030-01-01T00:01:59Z"));
+      const throttled = await getClaudeProviderUsage();
+
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(throttled.usage).toEqual(expect.objectContaining({ status: "error" }));
+
+      fetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ limits: [] }),
+      });
+      vi.setSystemTime(new Date("2030-01-01T00:02:01Z"));
+      const recovered = await getClaudeProviderUsage();
+
+      expect(fetch).toHaveBeenCalledTimes(2);
+      expect(recovered.usage).toEqual(expect.objectContaining({ status: "ok" }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
